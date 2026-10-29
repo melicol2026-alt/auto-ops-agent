@@ -9,7 +9,8 @@ VISIBILITY="--public"   # 想改成私有就把这行换成 --private
 
 export PATH="$PATH:/c/Program Files/GitHub CLI"
 
-cd "$(dirname "$0")"
+# 注意：必须切到仓库根，否则 --source=. 会把 tools/ 当成源码目录
+cd "$(dirname "$0")/.."
 
 echo "==> 检查 GitHub 登录状态"
 if ! gh auth status >/dev/null 2>&1; then
@@ -33,8 +34,14 @@ else
   gh repo create "$REPO" $VISIBILITY --source=. --remote=origin --push
 fi
 
-echo "==> 推送"
-git push -u origin "$(git branch --show-current)"
+echo "==> 推送 $(git branch --show-current)"
+git push -u origin "$(git branch --show-current)" 2>&1 || {
+  echo ""
+  echo "推送失败。常见原因："
+  echo "  1. 令牌权限不足（需勾选 repo）"
+  echo "  2. 网络到 github.com 不通，重试一次通常即可"
+  exit 1
+}
 
 echo ""
 echo "完成：https://github.com/$GH_USER/$REPO"
