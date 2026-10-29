@@ -1,47 +1,52 @@
 #!/usr/bin/env bash
-# 一键发布到 GitHub。
-# 前置：已完成一次 gh auth login（浏览器授权，只需一次，之后永久有效）。
-set -e
+# 通过 SSH 推送到 GitHub。
+# 注意：本机 git https 直连 github.com 会卡在响应体（git 内置旧 libcurl 的 schannel 重协商 bug），
+#       SSH（22 端口）稳定，故统一走 SSH。
+set -euo pipefail
 
 GH_USER="melicol2026-alt"
 REPO="auto-ops-agent"
-VISIBILITY="--public"   # 想改成私有就把这行换成 --private
+BRANCH="main"
 
-export PATH="$PATH:/c/Program Files/GitHub CLI"
-
-# 注意：必须切到仓库根，否则 --source=. 会把 tools/ 当成源码目录
 cd "$(dirname "$0")/.."
 
-echo "==> 检查 GitHub 登录状态"
-if ! gh auth status >/dev/null 2>&1; then
-  echo ""
-  echo "未登录 GitHub。请先执行一次（浏览器授权，只需一次）："
-  echo ""
-  echo "    gh auth login"
-  echo ""
-  echo "完成后重新运行本脚本即可。"
+# 1) SSH 认证检查
+if ! ssh -o ConnectTimeout=8 -o StrictHostKeyChecking=accept-new -T git@github.com 2>&1 | grep -qi "successfully authenticated"; then
+  echo "SSH 未认证到 GitHub。请先加公钥："
+  echo "  1) 若无密钥：ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519 -C '$GH_USER'"
+  echo "  2) 复制公钥：clip.exe < ~/.ssh/id_ed25519.pub"
+  echo "  3) 打开 https://github.com/settings/ssh/new 粘贴并保存"
+  echo "  4) 重跑本脚本"
   exit 1
 fi
 
-echo "==> 检查远端仓库是否存在"
-if gh repo view "$GH_USER/$REPO" >/dev/null 2>&1; then
-  echo "    仓库已存在，复用"
-  if ! git remote get-url origin >/dev/null 2>&1; then
-    git remote add origin "https://github.com/$GH_USER/$REPO.git"
-  fi
+# 2) 确保 origin 指向 SSH
+if ! git remote get-url origin >/dev/null 2>&1; then
+  git remote add origin "git@github.com:$GH_USER/$REPO.git"
 else
-  echo "    创建仓库 $GH_USER/$REPO"
-  gh repo create "$REPO" $VISIBILITY --source=. --remote=origin --push
+  git remote set-url origin "git@github.com:$GH_USER/$REPO.git"
 fi
 
-echo "==> 推送 $(git branch --show-current)"
-git push -u origin "$(git branch --show-current)" 2>&1 || {
-  echo ""
-  echo "推送失败。常见原因："
-  echo "  1. 令牌权限不足（需勾选 repo）"
-  echo "  2. 网络到 github.com 不通，重试一次通常即可"
-  exit 1
-}
+# 3) 仓库不存在时尝试用 GH_PAT 建仓（可选）
+if ! git ls-remote --exit-code origin >/dev/null 2>&1; then
+  if [ -n "${GH_PAT:-}" ]; then
+    echo "==> 远端仓库不存在，用 GH_PAT 创建 public 仓库 $GH_USER/$REPO"
+    curl -sf -X POST https://api.github.com/user/repos \
+      -H "Authorization: token $GH_PAT" -H "Accept: application/vnd.github+json" \
+      -d "{\"name\":\"$REPO\",\"private\":false}" >/dev/null || {
+        echo "建仓失败：GH_PAT 权限不足（需 repo scope），或仓库名已被占用。"
+        exit 1
+      }
+  else
+    echo "远端仓库不存在。请先手动建仓：https://github.com/new?name=$REPO （public）"
+    echo "或设置 GH_PAT 环境变量后重跑本脚本自动建仓。"
+    exit 1
+  fi
+fi
+
+# 4) 推送
+echo "==> 推送 $BRANCH"
+git push -u origin "$BRANCH"
 
 echo ""
 echo "完成：https://github.com/$GH_USER/$REPO"

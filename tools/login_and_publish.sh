@@ -1,51 +1,47 @@
 #!/usr/bin/env bash
-# 一条命令完成 GitHub 登录 + 建仓 + 推送。
-# 令牌仅在本机终端内输入（不回显、不写文件、不进聊天记录）。
+# 一条命令完成 SSH 密钥生成 + 引导加公钥 + 建仓 + 推送。
+# 走 SSH（本机 git https 直连 github.com 会卡响应体）。
 #
 # 用法：
 #   bash tools/login_and_publish.sh
 #
-# 前置：先在 https://github.com/settings/tokens 生成 classic token，
-#       勾选 repo（全选）、workflow、read:user。
+# 流程：确保有 ed25519 密钥 → 复制公钥到剪贴板 → 打开加 key 页 →
+#       轮询等待你在网页点「Add SSH key」→ 自动建仓推送。
 
 set -euo pipefail
 
+GH_USER="melicol2026-alt"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export PATH="$PATH:/c/Program Files/GitHub CLI:/c/Program Files (x86)/GitHub CLI"
 
-command -v gh >/dev/null 2>&1 || { echo "未找到 gh，请先安装：winget install --id GitHub.cli"; exit 1; }
+# 1) 确保有密钥
+if [ ! -f ~/.ssh/id_ed25519 ]; then
+  echo "==> 生成 ed25519 密钥…"
+  mkdir -p ~/.ssh && chmod 700 ~/.ssh
+  ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519 -C "$GH_USER" -q
+fi
 
-echo "────────────────────────────────────────────"
-echo " Agent 自动化调教 Skill · GitHub 发布"
-echo "────────────────────────────────────────────"
-echo
-echo "令牌获取地址：https://github.com/settings/tokens"
-echo "（classic token，勾选 repo / workflow / read:user）"
-echo
+# 2) 复制公钥 + 打开添加页
+echo "==> 复制公钥到剪贴板并打开添加页…"
+tr -d '\n' < ~/.ssh/id_ed25519.pub | clip.exe
+explorer.exe "https://github.com/settings/ssh/new" >/dev/null 2>&1
+echo ""
+echo "公钥已复制。请在网页里粘贴到 Key 框，Title 随意，点「Add SSH key」。"
+echo "本脚本会持续等待你完成（最长 3 分钟）…"
+echo ""
 
-printf "粘贴令牌（输入不回显）: "
-IFS= read -rs TOKEN
-echo
+# 3) 轮询等待认证成功
+ok=0
+for i in $(seq 1 36); do
+  if ssh -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new -T git@github.com 2>&1 | grep -qi "successfully authenticated"; then
+    ok=1; break
+  fi
+  sleep 5
+done
 
-if [ -z "${TOKEN}" ]; then
-  echo "未输入令牌，已取消。"
+if [ "$ok" != "1" ]; then
+  echo "等待超时，尚未检测到 SSH 认证成功。请确认已点「Add SSH key」，然后重跑本脚本。"
   exit 1
 fi
 
-echo
-echo "→ 正在登录 GitHub…"
-if ! printf '%s\n' "$TOKEN" | gh auth login --with-token 2>&1; then
-  echo "登录失败：令牌无效或权限不足，请重新生成后重试。"
-  exit 1
-fi
-
-echo "→ 登录成功："
-gh api user --jq '"  \(.login)  (id: \(.id))"' 2>/dev/null || gh auth status 2>&1 | head -3
-
-echo
-echo "→ 正在建仓并推送…"
+echo "==> SSH 已认证，开始建仓并推送…"
 bash "$ROOT/tools/publish.sh"
-
-unset TOKEN
-echo
-echo "完成。"
