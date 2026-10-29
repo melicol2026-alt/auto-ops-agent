@@ -1,5 +1,7 @@
-# auto-ops-agent · 自动化运营 Agent 调教法
+# Agent 自动化调教 Skill (auto-ops-agent)
 
+> 别名：`agent自动化调教skill` · `agent 自动化调教` · `自动化运营 Agent 调教法`
+>
 > 把一个只会给建议的 AI Agent，调教成能自己找需求、自己选题、自己出图、自己发布、自己复盘的全自动运营执行体。
 
 [English](#english) · [快速开始](#快速开始) · [架构](#架构) · [十条铁律](#十条铁律) · [目录](#目录结构)

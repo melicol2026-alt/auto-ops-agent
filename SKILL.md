@@ -1,15 +1,27 @@
 ---
 name: auto-ops-agent
 description: "把一个只会给建议的 AI Agent，调教成能自己找需求、自己选题、自己出图、自己发布、自己复盘的全自动运营执行体。适用于小红书/抖音/公众号/知乎等需要持续产出内容并运营账号的场景。含六层架构、十条铁律、供需缺口算法、防封号风控设计、代码化素材渲染、门禁放行机制与汇报模板。"
-display_name: 自动化运营 Agent 调教法
+display_name: Agent 自动化调教 Skill
 display_name_en: Autonomous Operations Agent Playbook
+display_name_alias:
+  - agent自动化调教skill
+  - agent 自动化调教
+  - 自动化运营 Agent 调教法
+  - auto-ops-agent
+aliases:
+  - agent自动化调教skill
+  - agent-ops-skill
+  - 自动化运营 Agent 调教法
 description_zh: "把一个只会给建议的 AI Agent，调教成能自己找需求、自己选题、自己出图、自己发布、自己复盘的全自动运营执行体；含六层架构、十条铁律、供需缺口算法、防封号风控、代码化素材渲染与门禁机制。"
 description_en: "Turn a suggestion-only AI assistant into an autonomous operations agent that finds demand, picks topics, renders visuals, publishes, and reviews on its own — with a six-layer architecture, ten hard rules, supply-demand gap scoring, anti-ban throttling, code-rendered creatives and an approval gate."
 version: 1.0.0
 agent_created: true
 ---
 
-# 自动化运营 Agent 调教法 (auto-ops-agent)
+# Agent 自动化调教 Skill (auto-ops-agent)
+
+> 别名：`agent自动化调教skill` / `agent 自动化调教` / `自动化运营 Agent 调教法`
+> 用以上任一叫法调用本 Skill 均可命中。
 
 ## 这个 Skill 解决什么
 
